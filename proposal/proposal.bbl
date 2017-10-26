@@ -1,0 +1,14 @@
+\begin{thebibliography}{}
+
+\bibitem[Goldberg, 2017]{goldberg.y:2017}
+Goldberg, Y. (2017).
+\newblock Neural network methods for natural language processing.
+\newblock {\em Synthesis Lectures on Human Language Technologies},
+  10(1):1--309.
+
+\bibitem[Greydanus, 2017]{greydanus.s:2017}
+Greydanus, S. (2017).
+\newblock Learning the enigma with recurrent neural networks.
+\newblock {\em arXiv preprint arXiv:1708.07576}.
+
+\end{thebibliography}
