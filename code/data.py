@@ -2,13 +2,16 @@ import csv
 import re
 import numpy as np
 import pandas as pd
-from gensim.models.keyedvectors import KeyedVectors
+import gensim
 from nltk.corpus import conll2002
 import nltk
+import math
+import sys 
+from keras.preprocessing import text, sequence
 
 class DataLoader(object):
     """docstring for DataLoader"""
-    def __init__(self, arg):
+    def __init__(self):
         super(DataLoader, self).__init__()
         self.X_train = None
         self.Y_train = None
@@ -20,18 +23,28 @@ class DataLoader(object):
         self.w2v_size = None
         self.max_length =None
 
-    def get_file_data(self, path):
+    def get_file_data(self, path, embedding_path):
         print("loading data")
-        if args.input_path.endswith(".csv"):
-            data = process_csv(args.input_path)
-            file = False
-        else:
-            data = process_file(args.input_path)
+        nltk = False
+        file = False
+
+        if path.endswith(".csv"):
+            data = self.process_csv(path)
+        elif path.endswith(".txt"):
+            data = self.process_file(path)
             file = True
+        else:
+            try:
+                train, dev, test = self.load_conll(path.strip())
+                data = train+dev+test
+                nltk = True
+            except:
+                print "invalid language option"
+                sys.exit(1)
 
         # print("getting X Y sets")
-        X, Y, word_embeddings, tag_embeddings, max_length = make_x_y(data, args.embedding_path, file)
-        self.w2v_size = len(word_embeddings[list(word_embeddings.keys())[0]])
+        X, Y, w2v_mapping, tag_embeddings, max_length = self.make_x_y(data, embedding_path, file, nltk)
+        self.w2v_size = len(w2v_mapping[list(w2v_mapping.vocab)[0]])
         train, test, dev = .7, .2, .1
 
         train_split = int(len(X)*train)
@@ -42,16 +55,18 @@ class DataLoader(object):
         self.X_dev, self.Y_dev = X[test_split +1 :], Y[test_split +1 :]
 
         print("data shape:")
-        print("train: {}, test: {}, dev: {}".format(X_train.shape, X_test.shape, X_dev.shape))
+        print("train: {}, test: {}, dev: {}".format(self.X_train.shape, self.X_test.shape, self.X_dev.shape))
 
         self.tag_length = len(tag_embeddings[0].keys())
 
-    # def load_conll(self, version):
-    #     train=conll2002.sents(version+'.train')
-    #     dev=conll2002.sents(version+'.testa')
-    #     test=conll2002.sents(version+'.testb')
-    #     print(dev)
-    #     # return train, dev, test
+    def load_conll(self, version):
+        print(conll2002.__dict__)
+        train=conll2002.iob_sents(version+'.train')
+        dev=conll2002.iob_sents(version+'.testa')
+        test=conll2002.iob_sents(version+'.testb')
+
+        print dev[-1]
+        return train, dev, test
 
     def process_csv(self, path):
         with open(path) as f1:
@@ -90,10 +105,27 @@ class DataLoader(object):
             all_sents = [[pair for pair in sent if len(pair)>1 ] for sent in data]
         return all_sents
 
-    def make_x_y(self, data, w2v_path=None, file=True):
+    def get_nltk_sentences(self, data):
+        """
+        get all sentences from NLTK conll2002 corpus (in word-tag tuples)
+        """
+        all_sents = []
+        for sentence in data:
+            new_sent = []
+            for tup in sentence: 
+                new_tup = (tup[0], tup[1])
+                new_sent.append(new_tup)
+            all_sents.append(new_sent)   
+        return all_sents
+
+    def make_x_y(self, data, w2v_path=None, file=True, nltk=False):
         # check if .csv or .txt
-        all_sentences = get_all_sentences(data, file)
-        print(all_sentences[0])
+        no_embedding = False
+        if not nltk:
+            all_sentences = self.get_all_sentences(data, file)
+        else:
+            all_sentences = self.get_nltk_sentences(data)
+
         all_sent_len = [len(x) for x in all_sentences]
         just_sents = [[y[0] for y in x] for x in all_sentences]
         max_len = max(all_sent_len)
@@ -105,7 +137,7 @@ class DataLoader(object):
             except:
                 w2v_mapping = gensim.models.KeyedVectors.load_word2vec_format(w2v_path, binary=False)
             
-            size = len(w2v_mapping[list(w2v_mapping.vocab.keys())[0]])
+            size = len(w2v_mapping[list(w2v_mapping.vocab)[0]])
             w2v_vocab = w2v_mapping.vocab
             # get all words 
             all_words = set([tup[0] for sent in all_sentences for tup in sent])
@@ -119,8 +151,14 @@ class DataLoader(object):
 
         else:
             # if word2vec not used, need to assign each word a separate integer for embedding layer
-            pass
-
+            vocabulary = set([x for sent in just_sents for x in sent])
+            vocab_size = len(vocabulary)
+            size = 300
+            encoded_sents = [text.one_hot(sent, vocab_size) for sent in just_sents]
+            max_length = max([len(sent) for sent in just_sents])
+            x_full = sequence.pad_sequences(encoded_sents, maxlen=max_length, padding='post')
+            w2v_mapping = None
+            no_embedding = True
         # if file:
         all_tags = sorted(list(set([pair[1] for sent in all_sentences for pair in sent])))
 
@@ -139,7 +177,8 @@ class DataLoader(object):
 
         tag_to_one_hot["NULL"] = null_tag
         one_hot_to_tag[tuple(null_tag)]  = "NULL"
-        x_full = []
+        if not no_embedding:
+            x_full = []
         y_full = []
 
         for sent in all_sentences:
@@ -147,16 +186,17 @@ class DataLoader(object):
             tag_seq = []
             for i, tup in enumerate(sent):
                 word, tag = tup
-                try:
-                    # w2v_seq.append(model[word])
-                    w2v_seq.append(w2v_mapping[word])
-                except KeyError:
-                    w2v_seq.append(oov_dict[word])
+                if not no_embedding:
+                    try:
+                        # w2v_seq.append(model[word])
+                        w2v_seq.append(w2v_mapping[word])
+                    except KeyError:
+                        w2v_seq.append(oov_dict[word])
                 tag_seq.append(tag_to_one_hot[tag])
           
             len_from_max = max_len - len(w2v_seq)
-
-            x_full.append(np.array(((len_from_max)*[null_embedding]) + w2v_seq ))
+            if not no_embedding:
+                x_full.append(np.array(((len_from_max)*[null_embedding]) + w2v_seq ))
             y_full.append(np.array(((len_from_max)*[null_tag]) + tag_seq))
 
 
