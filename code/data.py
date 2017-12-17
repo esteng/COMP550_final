@@ -105,6 +105,7 @@ class DataLoader(object):
 
         if file:
             all_sents = [[pair for pair in sent if len(pair)>1 ] for sent in data]
+        self.all_sents = all_sents
         return all_sents
 
     def get_nltk_sentences(self, data):
@@ -213,6 +214,7 @@ class DataLoader(object):
         print x_full.shape
         print y_full.shape
         self.one_hot_to_tag = one_hot_to_tag
+        self.tag_to_one_hot = tag_to_one_hot
         return x_full, y_full, w2v_mapping, (tag_to_one_hot, one_hot_to_tag), max_len
 
 
