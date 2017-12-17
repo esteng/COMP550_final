@@ -44,7 +44,12 @@ class DataLoader(object):
 
         # print("getting X Y sets")
         X, Y, w2v_mapping, tag_embeddings, max_length = self.make_x_y(data, embedding_path, file, nltk)
-        self.w2v_size = len(w2v_mapping[list(w2v_mapping.vocab)[0]])
+        try:
+            self.w2v_size = len(w2v_mapping[list(w2v_mapping.vocab)[0]])
+            self.use_embedding_layer = False
+        except AttributeError:
+            self.w2v_size = 300
+            self.use_embedding_layer = True
         train, test, dev = .7, .2, .1
 
         train_split = int(len(X)*train)
@@ -54,18 +59,15 @@ class DataLoader(object):
         self.X_test, self.Y_test = X[train_split +1 : test_split], Y[train_split + 1:test_split]
         self.X_dev, self.Y_dev = X[test_split +1 :], Y[test_split +1 :]
 
-        print("data shape:")
-        print("train: {}, test: {}, dev: {}".format(self.X_train.shape, self.X_test.shape, self.X_dev.shape))
+        print("X shape: train: {}, test: {}, dev: {}".format(self.X_train.shape, self.X_test.shape, self.X_dev.shape))
+        print("Y shape: train: {}, test: {}, dev: {}".format(self.Y_train.shape, self.Y_test.shape, self.Y_dev.shape))
 
         self.tag_length = len(tag_embeddings[0].keys())
 
     def load_conll(self, version):
-        print(conll2002.__dict__)
         train=conll2002.iob_sents(version+'.train')
         dev=conll2002.iob_sents(version+'.testa')
         test=conll2002.iob_sents(version+'.testb')
-
-        print dev[-1]
         return train, dev, test
 
     def process_csv(self, path):
@@ -152,16 +154,15 @@ class DataLoader(object):
         else:
             # if word2vec not used, need to assign each word a separate integer for embedding layer
             vocabulary = set([x for sent in just_sents for x in sent])
-            vocab_size = len(vocabulary)
+            self.vocab_size = len(vocabulary)
             size = 300
-            encoded_sents = [text.one_hot(sent, vocab_size) for sent in just_sents]
+            encoded_sents = [text.one_hot(" ".join(sent), self.vocab_size) for sent in just_sents]
             max_length = max([len(sent) for sent in just_sents])
-            x_full = sequence.pad_sequences(encoded_sents, maxlen=max_length, padding='post')
+            x_full = sequence.pad_sequences(encoded_sents, maxlen=max_length, padding='pre')
             w2v_mapping = None
             no_embedding = True
         # if file:
         all_tags = sorted(list(set([pair[1] for sent in all_sentences for pair in sent])))
-
         all_tags.append("NULL")
         tag_to_one_hot = {}
         one_hot_to_tag = {}
@@ -188,22 +189,30 @@ class DataLoader(object):
                 word, tag = tup
                 if not no_embedding:
                     try:
-                        # w2v_seq.append(model[word])
                         w2v_seq.append(w2v_mapping[word])
                     except KeyError:
                         w2v_seq.append(oov_dict[word])
                 tag_seq.append(tag_to_one_hot[tag])
-          
-            len_from_max = max_len - len(w2v_seq)
+
+            len_from_max = max_len - len(tag_seq)
+            # was len(w2v_seq)
             if not no_embedding:
                 x_full.append(np.array(((len_from_max)*[null_embedding]) + w2v_seq ))
             y_full.append(np.array(((len_from_max)*[null_tag]) + tag_seq))
 
+        first_len = len(y_full[1])
+        for y in y_full:
+            try:
+                assert(len(y) == first_len)
+            except:
+                print(len(y))
+                print(y)
 
         x_full = np.array(x_full)
         y_full = np.array(y_full)
         print x_full.shape
         print y_full.shape
+        self.one_hot_to_tag = one_hot_to_tag
         return x_full, y_full, w2v_mapping, (tag_to_one_hot, one_hot_to_tag), max_len
 
 

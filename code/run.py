@@ -1,22 +1,43 @@
 import re
+import argparse
+import sys
+
 from base_lstm import define_model
 from data import DataLoader
-import argparse
+from tester import evaluate_f1
 
 
-def run_lstm(X_train, Y_train, X_test, Y_test, w2v_size, tag_length, max_length):
+
+# embedding_size, tag_size, input_length, embedding = False, vocab_dim = 0
+def run_lstm(loader, use_dev=False):
     print("defining model...")
-    model = define_model(w2v_size, tag_length, max_length)
+    if loader.use_embedding_layer:
+        model = define_model(loader.w2v_size, loader.tag_length, loader.max_length, True, loader.vocab_size)
+    else:
+        model = define_model(loader.w2v_size, loader.tag_length, loader.max_length)
     print "model summary:"
     print model.summary()
     print("training...")
-    model.fit(X_train, Y_train, epochs=20, batch_size=32, verbose=1,  shuffle=True)
+    model.fit(loader.X_train, loader.Y_train, epochs=1, batch_size=32, verbose=1,  shuffle=True)
     print "evaluating"
-    results = model.evaluate(X_test, Y_test, verbose=1)
-    return results
+    if use_dev:
+        # results = model.evaluate(loader.X_dev, loader.Y_dev, verbose=1)
+        f1_results = evaluate_f1(model, loader, True)
+    else:
+        # results = model.evaluate(loader.X_test, loader.Y_test, verbose=1)
+        f1_results = evaluate_f1(model, loader, False)
+
+    print "accuracy"
+    print results
+
+    print "f1 score:"
+    print f1_results
+
+    return results, f1_results
 
 if __name__ == '__main__':
-    print("in main")
+    USE_DEV = True
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--embedding_file", dest='embedding_path', 
         default=None, required = False,
@@ -35,7 +56,6 @@ if __name__ == '__main__':
     loader.get_file_data(args.input_path, args.embedding_path)
     
     if args.model_type.lower() == "lstm":
-        run_lstm(loader.X_train, loader.Y_train, loader.X_dev, loader.Y_dev, 
-            loader.w2v_size, loader.tag_length, loader.max_length)
+        run_lstm(loader, USE_DEV)
 
 
