@@ -20,8 +20,8 @@ def run_lstm(loader, output_file, use_dev, layer_num):
     print model.summary()
 
     print "training..." 
-    model.fit(loader.X_train, loader.Y_train, epochs=2, batch_size=128, verbose=1,  shuffle=True)
-
+    model.fit(loader.X_train, loader.Y_train, epochs=20, batch_size=32, verbose=1,  shuffle=True)
+    model.save("{}-{}-{}".format(loader.input_path, loader.use_embedding_layer, loader.w2v_size))
     print "evaluating"
     if use_dev:
         results = model.evaluate(loader.X_dev, loader.Y_dev, verbose=1)
@@ -38,8 +38,8 @@ def run_lstm(loader, output_file, use_dev, layer_num):
     return results, f1_results
 
 if __name__ == '__main__':
-    USE_DEV = True
-    LAYER_NUM = 2
+    USE_DEV = False
+    LAYER_NUM = 1
     # todo: vary number of epochs 
 
     parser = argparse.ArgumentParser()
@@ -60,6 +60,6 @@ if __name__ == '__main__':
     loader.get_file_data(args.input_path, args.embedding_path)
     
     if args.model_type.lower() == "lstm":
-        run_lstm(loader, "../results/lstm_results.csv", USE_DEV, LAYER_NUM)
+        run_lstm(loader, "../results/lstm_results_ned.csv", USE_DEV, LAYER_NUM)
 
 

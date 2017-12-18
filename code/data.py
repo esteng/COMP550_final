@@ -34,13 +34,13 @@ class DataLoader(object):
             data = self.process_file(path)
             file = True
         else:
-            try:
-                train, dev, test = self.load_conll(path.strip())
-                data = train+dev+test
-                nltk = True
-            except:
-                print "invalid language option"
-                sys.exit(1)
+            # try:
+            train, dev, test = self.load_conll(path.strip(), 30)
+            data = train+dev+test
+            nltk = True
+            # except:
+                # print "invalid language option"
+                # sys.exit(1)
 
         # print("getting X Y sets")
         X, Y, w2v_mapping, tag_embeddings, max_length = self.make_x_y(data, embedding_path, file, nltk)
@@ -64,10 +64,11 @@ class DataLoader(object):
 
         self.tag_length = len(tag_embeddings[0].keys())
 
-    def load_conll(self, version):
+    def load_conll(self, version, max_length):
         train=conll2002.iob_sents(version+'.train')
-        dev=conll2002.iob_sents(version+'.testa')
-        test=conll2002.iob_sents(version+'.testb')
+        dev=[x for x in conll2002.iob_sents(version+'.testa') if len(x) <= max_length]
+        test=[x for x in conll2002.iob_sents(version+'.testb') if len(x) <= max_length]
+
         return train, dev, test
 
     def process_csv(self, path):
@@ -133,6 +134,10 @@ class DataLoader(object):
         just_sents = [[y[0] for y in x] for x in all_sentences]
         max_len = max(all_sent_len)
 
+        average_len = float(sum(all_sent_len))/float(len(all_sent_len))
+
+        print "average sentence length: {}".format(average_len)
+
         if w2v_path is not None:
             print "loading w2v model"
             try:
@@ -158,8 +163,10 @@ class DataLoader(object):
             self.vocab_size = len(vocabulary)
             size = 300
             encoded_sents = [text.one_hot(" ".join(sent), self.vocab_size) for sent in just_sents]
-            max_length = max([len(sent) for sent in just_sents])
-            x_full = sequence.pad_sequences(encoded_sents, maxlen=max_length, padding='pre')
+            # max_length = max([len(sent) for sent in just_sents])
+            max_length = 30
+            max_len = 30
+            x_full = sequence.pad_sequences(encoded_sents, maxlen=max_length, padding='pre', truncating='post')
             w2v_mapping = None
             no_embedding = True
         # if file:
@@ -193,7 +200,9 @@ class DataLoader(object):
                         w2v_seq.append(w2v_mapping[word])
                     except KeyError:
                         w2v_seq.append(oov_dict[word])
-                tag_seq.append(tag_to_one_hot[tag])
+                # truncate tags
+                if i < max_len:
+                    tag_seq.append(tag_to_one_hot[tag])
 
             len_from_max = max_len - len(tag_seq)
             # was len(w2v_seq)
@@ -202,12 +211,14 @@ class DataLoader(object):
             y_full.append(np.array(((len_from_max)*[null_tag]) + tag_seq))
 
         first_len = len(y_full[1])
+        print "first_len"
         for y in y_full:
             try:
                 assert(len(y) == first_len)
             except:
                 print(len(y))
                 print(y)
+                sys.exit()
 
         x_full = np.array(x_full)
         y_full = np.array(y_full)
