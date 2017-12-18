@@ -5,3 +5,4 @@ tensorflow
 gensim
 nltk
 argparse
+h5py

@@ -21,12 +21,13 @@ class DataLoader(object):
         self.tag_length = None
         self.w2v_size = None
         self.max_length =None
+        self.input_path = None
 
     def get_file_data(self, path, embedding_path):
         print("loading data")
         nltk = False
         file = False
-
+        self.input_path = path
         if path.endswith(".csv"):
             data = self.process_csv(path)
         elif path.endswith(".txt"):
