@@ -1,4 +1,3 @@
-from sklearn.metrics import f1_score
 import numpy as np
 import sys
 import re 

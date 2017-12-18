@@ -1,7 +1,6 @@
 import csv 
 import re
 import numpy as np
-import pandas as pd
 import gensim
 from nltk.corpus import conll2002
 import nltk
