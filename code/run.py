@@ -8,7 +8,7 @@ from data import DataLoader
 from tester import evaluate_f1
 
 # embedding_size, tag_size, input_length, embedding = False, vocab_dim = 0
-def run_lstm(loader, output_file, use_dev, layer_num):
+def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
     print "defining model..."
     if loader.use_embedding_layer:
         model = define_model(loader.w2v_size, loader.tag_length, loader.max_length, 
@@ -20,8 +20,10 @@ def run_lstm(loader, output_file, use_dev, layer_num):
     print model.summary()
 
     print "training..." 
-    model.fit(loader.X_train, loader.Y_train, epochs=1, batch_size=32, verbose=1,  shuffle=True)
-    model.save("{}-{}-{}".format(loader.input_path, loader.use_embedding_layer, loader.w2v_size))
+    if resume_path is not None:
+        model.load_weights(resume_path)
+    model.fit(loader.X_train, loader.Y_train, epochs=20, batch_size=32, verbose=1,  shuffle=True)
+    model.save("../models/{}-{}-{}".format(loader.input_path, loader.use_embedding_layer, loader.w2v_size))
     print "evaluating"
     if use_dev:
         results = model.evaluate(loader.X_dev, loader.Y_dev, verbose=1)
@@ -52,6 +54,7 @@ if __name__ == '__main__':
         help="mandatory path to NER corpus, either in csv or txt format")
     parser.add_argument("--model_type", dest="model_type", required=True, type=str, 
         help="mandatory argument: what type of NER system to run. \n Expected: 'lstm' or 'hmm'")
+    parser.add_argument("--resume_model", dest="resume_path", required=False, type=str, help="resume model from existing file")
     args = parser.parse_args()
 
     loader = DataLoader()
@@ -60,6 +63,6 @@ if __name__ == '__main__':
     loader.get_file_data(args.input_path, args.embedding_path)
     
     if args.model_type.lower() == "lstm":
-        run_lstm(loader, "../results/lstm_results_ned.csv", USE_DEV, LAYER_NUM)
+        run_lstm(loader, "../results/lstm_results_ned.csv", USE_DEV, LAYER_NUM, args.resume_path)
 
 

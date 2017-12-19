@@ -127,6 +127,9 @@ def evaluate_f1(model, loader, dev, sampling=False):
     else:
         y_true_tags = transform_one_hot(loader.Y_test, loader.one_hot_to_tag, loader.tag_length, sampling)
 
+    print y_true_tags[0]
+    print y_pred_tags[0]
+
     true_spans = get_spans(y_true_tags)
     pred_spans = get_spans(y_pred_tags)
     f1 = conll_f1(true_spans, pred_spans)

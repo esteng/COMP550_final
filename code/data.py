@@ -36,7 +36,8 @@ class DataLoader(object):
         else:
             # try:
             train, dev, test = self.load_conll(path.strip(), 30)
-            data = train+dev+test
+            print train[0]
+            data = [[(x[0], x[2]) for x in sent ] for sent in train+dev+test]
             nltk = True
             # except:
                 # print "invalid language option"
@@ -124,20 +125,39 @@ class DataLoader(object):
 
     def make_x_y(self, data, w2v_path=None, file=True, nltk=False):
         # check if .csv or .txt
+        max_length = 30
         no_embedding = False
         if not nltk:
             all_sentences = self.get_all_sentences(data, file)
         else:
             all_sentences = self.get_nltk_sentences(data)
 
+
         all_sent_len = [len(x) for x in all_sentences]
         just_sents = [[y[0] for y in x] for x in all_sentences]
         max_len = max(all_sent_len)
 
         average_len = float(sum(all_sent_len))/float(len(all_sent_len))
+        plot = False
+        if plot:
+            sent_len_dict = {x:0 for x in all_sent_len}
+            for length in all_sent_len:
+                sent_len_dict[length]+=1
 
+            keys, values = zip(*sorted(sent_len_dict.items(), key=lambda x: x[0]))
+            import matplotlib.pyplot as plt 
+            plt.bar(keys, values)
+            plt.show()
+            print "this many sentences < 40"
+            print float(sum([y for x,y in sent_len_dict.items() if x <= max_length]))/float(sum(values))
+            sys.exit()
+
+        original_num_sents = len(all_sentences)
         print "average sentence length: {}".format(average_len)
-
+        print "omitting sentences longer than {}".format(max_length)
+        all_sentences = [x for x in all_sentences if len(x) <= max_length]
+        print "{} sentences out of {} were omitted ({}%)".format(original_num_sents - len(all_sentences), 
+            original_num_sents, float(original_num_sents - len(all_sentences))/float(original_num_sents))
         if w2v_path is not None:
             print "loading w2v model"
             try:
@@ -212,6 +232,7 @@ class DataLoader(object):
 
         first_len = len(y_full[1])
         print "first_len"
+        print first_len
         for y in y_full:
             try:
                 assert(len(y) == first_len)
