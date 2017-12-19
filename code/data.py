@@ -150,7 +150,7 @@ class DataLoader(object):
             plt.show()
             print "this many sentences < 40"
             print float(sum([y for x,y in sent_len_dict.items() if x <= max_length]))/float(sum(values))
-            sys.exit()
+
 
         original_num_sents = len(all_sentences)
         print "average sentence length: {}".format(average_len)

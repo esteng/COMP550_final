@@ -135,5 +135,5 @@ def evaluate_f1(model, loader, dev, sampling=False):
     f1 = conll_f1(true_spans, pred_spans)
     # sanity_check = conll_f1(true_spans, true_spans)
     # print "sanity check f1: {}".format(sanity_check)
-
+    print "f1 is {}".format(f1)
     return f1

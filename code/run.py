@@ -22,8 +22,8 @@ def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
     print "training..." 
     if resume_path is not None:
         model.load_weights(resume_path)
-    model.fit(loader.X_train, loader.Y_train, epochs=20, batch_size=32, verbose=1,  shuffle=True)
-    model.save("../models/{}-{}-{}".format(loader.input_path, loader.use_embedding_layer, loader.w2v_size))
+    # model.fit(loader.X_train, loader.Y_train, epochs=20, batch_size=32, verbose=1,  shuffle=True)
+    # model.save("../models/{}-{}-{}".format(loader.input_path, loader.use_embedding_layer, loader.w2v_size))
     print "evaluating"
     if use_dev:
         results = model.evaluate(loader.X_dev, loader.Y_dev, verbose=1)
@@ -37,6 +37,8 @@ def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
         # row format: pretrained_embedding?, embedding_size, number of layers, accuarcy, f1
         row = [loader.use_embedding_layer, loader.w2v_size, layer_num, results[1], f1_results]
         writer.writerow(row)
+    print "accuracy {}".format(results[1])
+    print "f1: {}".format(f1_results)
     return results, f1_results
 
 if __name__ == '__main__':
