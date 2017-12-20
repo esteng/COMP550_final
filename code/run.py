@@ -20,10 +20,13 @@ def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
     print model.summary()
 
     print "training..." 
+    filename = loader.input_path.split("/")[-1]
+    filename = re.sub("(\.csv)|(\.txt)", "", filename)
+
     if resume_path is not None:
         model.load_weights(resume_path)
-    # model.fit(loader.X_train, loader.Y_train, epochs=20, batch_size=32, verbose=1,  shuffle=True)
-    # model.save("../models/{}-{}-{}".format(loader.input_path, loader.use_embedding_layer, loader.w2v_size))
+    model.fit(loader.X_train, loader.Y_train, epochs=20, batch_size=32, verbose=1,  shuffle=True)
+    model.save("../models/20-{}-{}-{}".format(filename, loader.use_embedding_layer, loader.w2v_size))
     print "evaluating"
     if use_dev:
         results = model.evaluate(loader.X_dev, loader.Y_dev, verbose=1)
@@ -43,7 +46,7 @@ def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
 
 if __name__ == '__main__':
     USE_DEV = False
-    LAYER_NUM = 1
+    # LAYER_NUM = 1
     # todo: vary number of epochs 
 
     parser = argparse.ArgumentParser()
@@ -57,14 +60,16 @@ if __name__ == '__main__':
     parser.add_argument("--model_type", dest="model_type", required=True, type=str, 
         help="mandatory argument: what type of NER system to run. \n Expected: 'lstm' or 'hmm'")
     parser.add_argument("--resume_model", dest="resume_path", required=False, type=str, help="resume model from existing file")
+    parser.add_argument("--layer_num", dest="layer_num", required=False, default=1, help="the number of bidirectional LSTM and dropout layer pairs in the model")
+    parser.add_argument("--stop", dest="stop", required=False, default=None, help="whether or not to remove stopwords")
     args = parser.parse_args()
 
     loader = DataLoader()
 
     
-    loader.get_file_data(args.input_path, args.embedding_path)
+    loader.get_file_data(args.input_path, args.embedding_path, args.stop)
     
     if args.model_type.lower() == "lstm":
-        run_lstm(loader, "../results/lstm_results_ned.csv", USE_DEV, LAYER_NUM, args.resume_path)
+        run_lstm(loader, "../results/lstm_results_ned.csv", USE_DEV, args.layer_num, args.resume_path)
 
 

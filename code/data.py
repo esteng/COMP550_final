@@ -2,7 +2,7 @@ import csv
 import re
 import numpy as np
 import gensim
-from nltk.corpus import conll2002
+from nltk.corpus import conll2002, stopwords
 import nltk
 import math
 import sys 
@@ -23,9 +23,9 @@ class DataLoader(object):
         self.max_length =None
         self.input_path = None
 
-    def get_file_data(self, path, embedding_path):
+    def get_file_data(self, path, embedding_path, stopwords=None):
         print("loading data")
-        nltk = False
+        use_nltk = False
         file = False
         self.input_path = path
         if path.endswith(".csv"):
@@ -34,17 +34,13 @@ class DataLoader(object):
             data = self.process_file(path)
             file = True
         else:
-            # try:
             train, dev, test = self.load_conll(path.strip(), 30)
-            print train[0]
             data = [[(x[0], x[2]) for x in sent ] for sent in train+dev+test]
-            nltk = True
-            # except:
-                # print "invalid language option"
-                # sys.exit(1)
+            use_nltk = True
 
-        # print("getting X Y sets")
-        X, Y, w2v_mapping, tag_embeddings, max_length = self.make_x_y(data, embedding_path, file, nltk)
+        print("getting X Y sets")
+        # print data[100]
+        X, Y, w2v_mapping, tag_embeddings, max_length = self.make_x_y(data, embedding_path, file, use_nltk, stopwords)
         try:
             self.w2v_size = len(w2v_mapping[list(w2v_mapping.vocab)[0]])
             self.use_embedding_layer = False
@@ -62,13 +58,12 @@ class DataLoader(object):
 
         print("X shape: train: {}, test: {}, dev: {}".format(self.X_train.shape, self.X_test.shape, self.X_dev.shape))
         print("Y shape: train: {}, test: {}, dev: {}".format(self.Y_train.shape, self.Y_test.shape, self.Y_dev.shape))
-
         self.tag_length = len(tag_embeddings[0].keys())
 
     def load_conll(self, version, max_length):
         train=conll2002.iob_sents(version+'.train')
-        dev=[x for x in conll2002.iob_sents(version+'.testa') if len(x) <= max_length]
-        test=[x for x in conll2002.iob_sents(version+'.testb') if len(x) <= max_length]
+        dev=conll2002.iob_sents(version+'.testa')
+        test=conll2002.iob_sents(version+'.testb')
 
         return train, dev, test
 
@@ -123,41 +118,91 @@ class DataLoader(object):
             all_sents.append(new_sent)   
         return all_sents
 
-    def make_x_y(self, data, w2v_path=None, file=True, nltk=False):
+    def get_most_common(self, path, n):
+        print("loading data")
+        if path.endswith(".csv"):
+            data = self.process_csv(path)
+            sentences = self.get_all_sentences(data)
+        elif path.endswith(".txt"):
+            data = self.process_file(path)
+            file = True
+            sentences = self.get_all_sentences(data)
+        else:
+            # try:
+            train, dev, test = self.load_conll(path.strip(), 30)
+            print train[0]
+            data = [[(x[0], x[2]) for x in sent ] for sent in train+dev+test]
+            sentences = data
+        
+        just_tags = [y[1] for x in sentences for y in x ]
+        tagset = set(just_tags)
+        tag_freq = {x:0 for x in tagset}
+        for t in just_tags:
+            tag_freq[t] +=1
+
+        print "tag frequencies:"
+        print tag_freq
+        print "top tags"
+        top =  sorted(tag_freq.items(), key = lambda x: x[1])
+        return sentences, top[-2:]
+
+
+
+    def make_x_y(self, data, w2v_path=None, file=True, use_nltk=False, stopwords=None):
         # check if .csv or .txt
-        max_length = 30
+        
         no_embedding = False
-        if not nltk:
+        if not use_nltk:
             all_sentences = self.get_all_sentences(data, file)
         else:
             all_sentences = self.get_nltk_sentences(data)
 
+        if stopwords is not None:
+            stop = set(nltk.corpus.stopwords.words(stopwords))
+            all_sentences = [[tup for tup in sent if tup[0] not in stop] for sent in all_sentences]
 
+        print(all_sentences[0])
         all_sent_len = [len(x) for x in all_sentences]
-        just_sents = [[y[0] for y in x] for x in all_sentences]
-        max_len = max(all_sent_len)
 
         average_len = float(sum(all_sent_len))/float(len(all_sent_len))
+        sent_len_dict = {x:0 for x in all_sent_len}
+        for length in all_sent_len:
+            sent_len_dict[length]+=1
+
+        # compute cutoff 
+        # whatever length keeps 90% of sentences
+        ninty_break = .90*len(all_sentences)
+        length_sum = 0
+        sentence_index = 0
+        for length, sent_num in sorted(sent_len_dict.items(), key=lambda x: x[0]):
+            sentence_index = length
+            length_sum += sent_num
+            if length_sum > ninty_break:
+                break
+        max_length = sentence_index
+        max_len = max_length
+
+        # plot if needed
         plot = False
         if plot:
-            sent_len_dict = {x:0 for x in all_sent_len}
-            for length in all_sent_len:
-                sent_len_dict[length]+=1
-
             keys, values = zip(*sorted(sent_len_dict.items(), key=lambda x: x[0]))
             import matplotlib.pyplot as plt 
             plt.bar(keys, values)
-            plt.show()
-            print "this many sentences < 40"
-            print float(sum([y for x,y in sent_len_dict.items() if x <= max_length]))/float(sum(values))
+            plt.axvline(x=max_length, **{"color":"red"})
 
+            plt.show()
+            print "this many sentences < {}".format(max_length)
+            print float(sum([y for x,y in sent_len_dict.items() if x <= max_length]))/float(sum(values))
 
         original_num_sents = len(all_sentences)
         print "average sentence length: {}".format(average_len)
         print "omitting sentences longer than {}".format(max_length)
         all_sentences = [x for x in all_sentences if len(x) <= max_length]
+        print "max length is now: {}".format(max([len(x) for x in all_sentences]))
         print "{} sentences out of {} were omitted ({}%)".format(original_num_sents - len(all_sentences), 
             original_num_sents, float(original_num_sents - len(all_sentences))/float(original_num_sents))
+        
+        just_sents = [[y[0] for y in x] for x in all_sentences]
         if w2v_path is not None:
             print "loading w2v model"
             try:
@@ -183,9 +228,6 @@ class DataLoader(object):
             self.vocab_size = len(vocabulary)
             size = 300
             encoded_sents = [text.one_hot(" ".join(sent), self.vocab_size) for sent in just_sents]
-            # max_length = max([len(sent) for sent in just_sents])
-            max_length = 30
-            max_len = 30
             x_full = sequence.pad_sequences(encoded_sents, maxlen=max_length, padding='pre', truncating='post')
             w2v_mapping = None
             no_embedding = True
@@ -231,8 +273,7 @@ class DataLoader(object):
             y_full.append(np.array(((len_from_max)*[null_tag]) + tag_seq))
 
         first_len = len(y_full[1])
-        print "first_len"
-        print first_len
+        print "first_len: {}".format(first_len)
         for y in y_full:
             try:
                 assert(len(y) == first_len)
@@ -241,8 +282,14 @@ class DataLoader(object):
                 print(y)
                 sys.exit()
 
+        print "asserted"
+        print "number of sentences: {}".format(len(x_full))
+        print "length of sentence: {}".format(len(x_full[0]))
+
         x_full = np.array(x_full)
+        print "got x as array"
         y_full = np.array(y_full)
+        print "got y as array"
         print x_full.shape
         print y_full.shape
         self.one_hot_to_tag = one_hot_to_tag
