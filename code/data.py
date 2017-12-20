@@ -9,7 +9,7 @@ import sys
 from keras.preprocessing import text, sequence
 
 class DataLoader(object):
-    """docstring for DataLoader"""
+    """DataLoader class creates passable object containing all data"""
     def __init__(self):
         super(DataLoader, self).__init__()
         self.X_train = None
@@ -24,6 +24,29 @@ class DataLoader(object):
         self.input_path = None
 
     def get_file_data(self, path, embedding_path, stopwords=None):
+        """
+        for LSTM loading, read in the data from a path (or nltk language option) and transform this into 
+        a set of questions (X) and answers (Y). If an embedding is used, then the X array will be a 3d numpy array 
+        where the 1st dimension is the number of sentences, the 2nd is the length of each sentence, and the 3rd is 
+        the embedding for each word in the sentence. If no embedding is used, X will be a 2d array where the 1st 
+        dimension is the number of sentence and the 2nd is the length of the sentence. Each entry in X corresponds to
+        a sentence, and each entry in the sentence is a word, either in w2v vector form or with each word type mapped
+        to a discrete integer for the embedding layer.
+        
+        Tag types are counted and each tag is similarly transformed into a one-hot vector encoding its tag type. This is
+        the Y array, composed of a list of sentences, where each sentence is a sequence of one-hot tag arrays. 
+
+        This method also splits the data into the train,test, and dev sets.
+
+        Parameters
+        ----------
+        path: str
+            path to the data (csv, txt, or nltk language option ("ned" or "esp"))
+        embedding_path: str
+            path to the embedding file (binary or text) if available
+        stopwords: str
+            nltk option for stopwords, if set to valid string stopwords are removed 
+        """
         print("loading data")
         use_nltk = False
         file = False
@@ -34,7 +57,7 @@ class DataLoader(object):
             data = self.process_file(path)
             file = True
         else:
-            train, dev, test = self.load_conll(path.strip(), 30)
+            train, dev, test = self.load_conll(path.strip())
             data = [[(x[0], x[2]) for x in sent ] for sent in train+dev+test]
             use_nltk = True
 
@@ -60,7 +83,20 @@ class DataLoader(object):
         print("Y shape: train: {}, test: {}, dev: {}".format(self.Y_train.shape, self.Y_test.shape, self.Y_dev.shape))
         self.tag_length = len(tag_embeddings[0].keys())
 
-    def load_conll(self, version, max_length):
+    def load_conll(self, version):
+        """
+        loads conll 2002 datasets from nltk
+
+        Parameters
+        ----------
+        version: str
+            either ned or esp
+
+        Returns
+        -------
+        tuple
+            train, test, and dev sets
+        """
         train=conll2002.iob_sents(version+'.train')
         dev=conll2002.iob_sents(version+'.testa')
         test=conll2002.iob_sents(version+'.testb')
@@ -68,6 +104,19 @@ class DataLoader(object):
         return train, dev, test
 
     def process_csv(self, path):
+        """
+        loads sentences from csv format
+
+        Parameters
+        ----------
+        path: str
+            path to the csv
+
+        Returns
+        -------
+        to_ret: list
+            a list of tuples of the form (word_sequence, tag_sequence)
+        """
         with open(path) as f1:
             reader = csv.DictReader(f1)
             sent = None
@@ -95,6 +144,20 @@ class DataLoader(object):
         return line_sentences
 
     def get_all_sentences(self, data, file=False):
+        """
+        takes a list of tuples of the form (word_sequence, tag_sequence)
+        transforms into a list of lists of tuples of the form [[[#sent1(word1, tag1),(word2, tag2)... ], #sent2...]]
+
+        Parameters
+        ----------
+        data: list
+            list of tuples of the form (word_sequence, tag_sequence)
+
+        Returns
+        -------
+        all_sents: list
+            list of lists of tuples of the form [[[#sent1(word1, tag1),(word2, tag2)... ], #sent2...]]
+        """
         all_sents = []
         sentence = []
         if not file:
@@ -118,7 +181,22 @@ class DataLoader(object):
             all_sents.append(new_sent)   
         return all_sents
 
-    def get_most_common(self, path, n):
+    def get_most_common(self, path):
+        """
+        gets top two most common tags in a corpus 
+
+        Parameters
+        ----------
+        path: str
+            path to the corpus
+
+        Returns
+        -------
+        sentences: list
+            a list of sentences (for length later)
+        top: tuple
+            the top two tags
+        """
         print("loading data")
         if path.endswith(".csv"):
             data = self.process_csv(path)
@@ -149,6 +227,42 @@ class DataLoader(object):
 
 
     def make_x_y(self, data, w2v_path=None, file=True, use_nltk=False, stopwords=None):
+        """ 
+        transforms data where each sentence is a list of tuples (word, tag) into embedded vectors (either discrete 
+        or word2vec) and tag embeddings.
+
+        Truncates sentences to be below the 90th percentile w.r.t. length for scalability reasons
+        pads shorter sentences with null embedding. 
+
+        Parameters
+        ----------
+        data: list
+            list of sentences where each sentence is a list of tuples (word, tag)
+        w2v_path: str
+            path to pretrained w2v embeddings. Defaults to None
+        file: boolean
+            whether data is read from .txt or .csv. Defaults to True
+        use_nltk: boolean
+            whether data is to be read from nltk corpus. Defaults to False
+        stopwords: str
+            which stopword language option to use. Defaults to None
+
+        Returns
+        -------
+        x_full: np.array
+            array representation of all sentences (w2v or discrete)
+        y_full: 
+            array representation of all corresponding tag sequences (one-hot embedding)
+        w2v_mapping:
+            the mapping of words to embedded vectors 
+        tag_to_one_hot:
+            the mapping of tags to one-hot vectors
+        one_hot_to_tag:
+            the mapping of one-hot vectors to tags (needed for decoding)
+        max_len:
+            the maximum length of sentences 
+        """
+
         # check if .csv or .txt
         
         no_embedding = False
@@ -158,7 +272,7 @@ class DataLoader(object):
             all_sentences = self.get_nltk_sentences(data)
 
         if stopwords is not None:
-            stop = set(nltk.corpus.stopwords.words(stopwords))
+            stop = set(nltk.corpus.stopwords.words(stopwords)) | set([".",",","(",")",";","?","!",":"])
             all_sentences = [[tup for tup in sent if tup[0] not in stop] for sent in all_sentences]
 
         print(all_sentences[0])
@@ -267,12 +381,12 @@ class DataLoader(object):
                     tag_seq.append(tag_to_one_hot[tag])
 
             len_from_max = max_len - len(tag_seq)
-            # was len(w2v_seq)
             if not no_embedding:
                 x_full.append(np.array(((len_from_max)*[null_embedding]) + w2v_seq ))
             y_full.append(np.array(((len_from_max)*[null_tag]) + tag_seq))
 
         first_len = len(y_full[1])
+        # integrity check
         print "first_len: {}".format(first_len)
         for y in y_full:
             try:
@@ -287,9 +401,7 @@ class DataLoader(object):
         print "length of sentence: {}".format(len(x_full[0]))
 
         x_full = np.array(x_full)
-        print "got x as array"
         y_full = np.array(y_full)
-        print "got y as array"
         print x_full.shape
         print y_full.shape
         self.one_hot_to_tag = one_hot_to_tag

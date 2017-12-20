@@ -25,8 +25,10 @@ def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
 
     if resume_path is not None:
         model.load_weights(resume_path)
-    model.fit(loader.X_train, loader.Y_train, epochs=20, batch_size=32, verbose=1,  shuffle=True)
-    model.save("../models/20-{}-{}-{}".format(filename, loader.use_embedding_layer, loader.w2v_size))
+    # model.fit(loader.X_train, loader.Y_train, epochs=20, batch_size=32, verbose=1,  shuffle=True)
+    model.fit(loader.X_test, loader.Y_test, epochs=20, batch_size=32, verbose=1,  shuffle=True)
+
+    model.save("../models/test-20-{}-{}-{}".format(filename, loader.use_embedding_layer, loader.w2v_size))
     print "evaluating"
     if use_dev:
         results = model.evaluate(loader.X_dev, loader.Y_dev, verbose=1)
@@ -45,7 +47,7 @@ def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
     return results, f1_results
 
 if __name__ == '__main__':
-    USE_DEV = False
+    USE_DEV = True
     # LAYER_NUM = 1
     # todo: vary number of epochs 
 

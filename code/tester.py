@@ -80,6 +80,9 @@ def get_spans(sequences):
     return all_spans
 
 def span_equals(span1, span2):
+    """
+    comparator for spans 
+    """
     for e1, e2 in zip(span1, span2):
         if e1 != e2:
             return False
@@ -87,9 +90,16 @@ def span_equals(span1, span2):
 
 
 def conll_f1(true_spans, pred_spans):
-    # from Conll2003 paper:
-    # Precision is the percentage of named entities found by the learning system that are correct. 
-    # Recall is the percentage of named entities present in the corpus that are found by the system
+    """
+    from Conll2003 paper:
+    Precision is the percentage of named entities found by the learning system that are correct. 
+    Recall is the percentage of named entities present in the corpus that are found by the system
+
+    Parameters
+    ----------
+    true_spans: str
+    pred_spans: str
+    """
     precision = 0
     recall = 0
     total_predicted = 0
@@ -148,13 +158,22 @@ def evaluate_accuracy(model, loader, dev):
 
     correct = 0
     total = 0
-
-
+    c = 0
+    for true, pred in zip(y_true_tags, y_pred_tags):
+        try:
+            assert len(true) == len(pred)
+        except AssertionError:
+            print len(true), len(pred)
+            c+=1
+    print "mistakes: ", c
     for i, sent in enumerate(y_true_tags):
         total += len(sent)
         for j, tag in enumerate(sent):
-            if tag == y_pred_tags[i][j]:
-                correct += 1
+            try:
+                if tag == y_pred_tags[i][j]:
+                    correct += 1
+            except IndexError:
+                continue
 
     print "accuracy: {}".format(float(correct)/float(total))
 

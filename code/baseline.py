@@ -11,7 +11,7 @@ top, other = tup
 top_tag = top[0]
 other_tag = other[0]
 
-loader.get_file_data(path, None)
+loader.get_file_data(path, None, None)
 
 
 
@@ -20,8 +20,8 @@ loader.get_file_data(path, None)
 print "top tag: ",top_tag
 print "other tag: ", other_tag
 
-y_pred_top = len(sentences)*[30*[loader.tag_to_one_hot[top_tag]]]
-y_pred_other = len(sentences)*[30*[loader.tag_to_one_hot[other_tag]]]
+y_pred_top = len(sentences)*[31*[loader.tag_to_one_hot[top_tag]]]
+y_pred_other = len(sentences)*[31*[loader.tag_to_one_hot[other_tag]]]
 
 class Placeholder(object):
     """docstring for Placeholder"""
@@ -31,11 +31,13 @@ class Placeholder(object):
         self.y_pred_top = y_pred_top
     def predict(_, waste):
         
-        return y_pred_top
+        return y_pred_other
 
 model = Placeholder(y_pred_other, y_pred_top)
-
-f1 = evaluate_f1(model, loader, False)
+try:
+    f1 = evaluate_f1(model, loader, False)
+except:
+    print "F1 error"
 
 
 acc = evaluate_accuracy(model, loader, False)
