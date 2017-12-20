@@ -2,6 +2,7 @@ import re
 import argparse
 import sys
 import csv
+from nltk.tag import hmm
 
 from base_lstm import define_model
 from data import DataLoader
@@ -39,8 +40,13 @@ def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
         writer.writerow(row)
     return results, f1_results
 
+def run_hmm(loader, output_file, use_dev):
+    trainer=hmm.HiddenMarkovModelTrainer()
+    tagger = trainer.train_supervised(loader.train)
+    tagger.test(loader.dev)
+
 if __name__ == '__main__':
-    USE_DEV = False
+    USE_DEV = True
     LAYER_NUM = 1
     # todo: vary number of epochs 
 
@@ -60,9 +66,9 @@ if __name__ == '__main__':
     loader = DataLoader()
 
     
-    loader.get_file_data(args.input_path, args.embedding_path)
+    loader.get_file_data(args.input_path, args.embedding_path, args.model_type)
     
     if args.model_type.lower() == "lstm":
         run_lstm(loader, "../results/lstm_results_ned.csv", USE_DEV, LAYER_NUM, args.resume_path)
-
-
+    else:
+        run_hmm(loader, "../results/hmm_results_esp.csv", USE_DEV)

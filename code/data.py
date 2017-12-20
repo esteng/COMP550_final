@@ -1,7 +1,7 @@
 import csv 
 import re
 import numpy as np
-import gensim
+#import gensim
 from nltk.corpus import conll2002
 import nltk
 import math
@@ -14,16 +14,19 @@ class DataLoader(object):
         super(DataLoader, self).__init__()
         self.X_train = None
         self.Y_train = None
+        self.train = None
         self.X_test = None
         self.Y_test = None
+        self.test = None
         self.X_dev = None
         self.Y_dev = None
+        self.dev = None
         self.tag_length = None
         self.w2v_size = None
         self.max_length =None
         self.input_path = None
 
-    def get_file_data(self, path, embedding_path):
+    def get_file_data(self, path, embedding_path, version):
         print("loading data")
         nltk = False
         file = False
@@ -36,34 +39,41 @@ class DataLoader(object):
         else:
             # try:
             train, dev, test = self.load_conll(path.strip(), 30)
-            print train[0]
+            #print train[0]
             data = [[(x[0], x[2]) for x in sent ] for sent in train+dev+test]
             nltk = True
             # except:
                 # print "invalid language option"
                 # sys.exit(1)
-
-        # print("getting X Y sets")
-        X, Y, w2v_mapping, tag_embeddings, max_length = self.make_x_y(data, embedding_path, file, nltk)
-        try:
-            self.w2v_size = len(w2v_mapping[list(w2v_mapping.vocab)[0]])
-            self.use_embedding_layer = False
-        except AttributeError:
-            self.w2v_size = 300
-            self.use_embedding_layer = True
         train, test, dev = .7, .2, .1
+        if version=="lstm":
+            # print("getting X Y sets")
+            X, Y, w2v_mapping, tag_embeddings, max_length = self.make_x_y(data, embedding_path, file, nltk)
+            try:
+                self.w2v_size = len(w2v_mapping[list(w2v_mapping.vocab)[0]])
+                self.use_embedding_layer = False
+            except AttributeError:
+                self.w2v_size = 300
+                self.use_embedding_layer = True
 
-        train_split = int(len(X)*train)
-        test_split = train_split+1+int(math.floor(len(X)*test))
+            train_split = int(len(X)*train)
+            test_split = train_split+1+int(math.floor(len(X)*test))
 
-        self.X_train, self.Y_train = X[:train_split], Y[:train_split]
-        self.X_test, self.Y_test = X[train_split +1 : test_split], Y[train_split + 1:test_split]
-        self.X_dev, self.Y_dev = X[test_split +1 :], Y[test_split +1 :]
+            self.X_train, self.Y_train = X[:train_split], Y[:train_split]
+            self.X_test, self.Y_test = X[train_split +1 : test_split], Y[train_split + 1:test_split]
+            self.X_dev, self.Y_dev = X[test_split +1 :], Y[test_split +1 :]
 
-        print("X shape: train: {}, test: {}, dev: {}".format(self.X_train.shape, self.X_test.shape, self.X_dev.shape))
-        print("Y shape: train: {}, test: {}, dev: {}".format(self.Y_train.shape, self.Y_test.shape, self.Y_dev.shape))
+            print("X shape: train: {}, test: {}, dev: {}".format(self.X_train.shape, self.X_test.shape, self.X_dev.shape))
+            print("Y shape: train: {}, test: {}, dev: {}".format(self.Y_train.shape, self.Y_test.shape, self.Y_dev.shape))
 
-        self.tag_length = len(tag_embeddings[0].keys())
+            self.tag_length = len(tag_embeddings[0].keys())
+
+        if version=="hmm":
+            train_split = int(len(data)*train)
+            test_split = train_split+1+int(math.floor(len(data)*test))
+            self.train = data[:train_split]
+            self.dev = data[train_split+1 : test_split]
+            self.test = data[test_split+1:]
 
     def load_conll(self, version, max_length):
         train=conll2002.iob_sents(version+'.train')
@@ -248,5 +258,3 @@ class DataLoader(object):
         self.one_hot_to_tag = one_hot_to_tag
         self.tag_to_one_hot = tag_to_one_hot
         return x_full, y_full, w2v_mapping, (tag_to_one_hot, one_hot_to_tag), max_len
-
-
