@@ -1,6 +1,8 @@
 import numpy as np
 import sys
 import re 
+from nltk.metrics import accuracy
+import itertools
 
 
 def transform_one_hot(data, mapping, length, sampling):
@@ -31,6 +33,26 @@ def transform_one_hot(data, mapping, length, sampling):
 
     return new_seqs
 
+def hmm_sequences(loader, tagger, data):
+    sents=[]
+    correct_tags=[]
+    predicted_tags=[]
+    def words(sent):
+        return [word for (word, tag) in sent]
+
+    def tags(sent):
+        return [tag for (word, tag) in sent]
+
+    for sent in data:
+        #sents.append(words(sent))
+        correct_tags.append(tags(sent))
+        predicted_words=tagger.tag(words(sent))
+        predicted_labels=[word[1] for word in predicted_words]
+        predicted_tags.append(predicted_labels)
+    return correct_tags, predicted_tags
+
+
+    #predicted_sequence = list(map(self._tag, map(words, test_sequence)))
 
 def get_spans(sequences):
     """return a sequence of spans where a span is defined as everything before the O in a
@@ -85,7 +107,6 @@ def span_equals(span1, span2):
             return False
     return True
 
-
 def conll_f1(true_spans, pred_spans):
     # from Conll2003 paper:
     # Precision is the percentage of named entities found by the learning system that are correct. 
@@ -137,3 +158,19 @@ def evaluate_f1(model, loader, dev, sampling=False):
     # print "sanity check f1: {}".format(sanity_check)
 
     return f1
+
+def evaluate_hmm(loader, tagger, dev):
+    if dev:
+        correct, predicted=hmm_sequences(loader, tagger, loader.dev)
+    else:
+        correct, predicted=hmm_sequences(loader, tagger, loader.test)
+    correct_spans=get_spans(correct)
+    predicted_spans=get_spans(predicted)
+    f1 = conll_f1(correct_spans, predicted_spans)
+    def flatten(seq):
+        return list(itertools.chain(*seq))
+    flat_correct=flatten(correct)
+    flat_predicted=flatten(predicted)
+    acc = accuracy(flat_correct, flat_predicted)
+
+    return acc, f1

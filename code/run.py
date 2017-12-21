@@ -7,6 +7,8 @@ from nltk.tag import hmm
 from base_lstm import define_model
 from data import DataLoader
 from tester import evaluate_f1
+from tester import evaluate_hmm
+from nltk.probability import *
 
 # embedding_size, tag_size, input_length, embedding = False, vocab_dim = 0
 def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
@@ -40,10 +42,17 @@ def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
         writer.writerow(row)
     return results, f1_results
 
-def run_hmm(loader, output_file, use_dev):
+def run_hmm(loader, use_dev):
+    print "training..."
     trainer=hmm.HiddenMarkovModelTrainer()
-    tagger = trainer.train_supervised(loader.train)
-    tagger.test(loader.dev)
+    tagger = trainer.train_supervised(loader.train, LaplaceProbDist)
+    print "evaluating..."
+    accuracy, f1_results= evaluate_hmm(loader, tagger, use_dev)
+    if use_dev:
+        results=tagger.test(loader.dev, verbose=1)
+    else:
+        results=tagger.test(loader.test, verbose=1)
+    print ("The accuracy is: {} and the f1 is:{}".format(accuracy, f1))
 
 if __name__ == '__main__':
     USE_DEV = True
@@ -71,4 +80,4 @@ if __name__ == '__main__':
     if args.model_type.lower() == "lstm":
         run_lstm(loader, "../results/lstm_results_ned.csv", USE_DEV, LAYER_NUM, args.resume_path)
     else:
-        run_hmm(loader, "../results/hmm_results_esp.csv", USE_DEV)
+        run_hmm(loader, USE_DEV)
