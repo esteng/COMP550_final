@@ -33,8 +33,11 @@ def transform_one_hot(data, mapping, length, sampling):
 
     return new_seqs
 
-def hmm_sequences(loader, tagger, data):
-    sents=[]
+def hmm_sequences(loader, tagger, dev):
+    if dev:
+        data=loader.dev
+    else:
+        data=loader.test
     correct_tags=[]
     predicted_tags=[]
     def words(sent):
@@ -44,11 +47,13 @@ def hmm_sequences(loader, tagger, data):
         return [tag for (word, tag) in sent]
 
     for sent in data:
-        #sents.append(words(sent))
-        correct_tags.append(tags(sent))
-        predicted_words=tagger.tag(words(sent))
-        predicted_labels=[word[1] for word in predicted_words]
-        predicted_tags.append(predicted_labels)
+        try:
+            correct_tags.append(tags(sent))
+            predicted_words=tagger.tag(words(sent))
+            predicted_labels=[word[1] for word in predicted_words]
+            predicted_tags.append(predicted_labels)
+        except:
+            print sent
     return correct_tags, predicted_tags
 
 
@@ -160,10 +165,7 @@ def evaluate_f1(model, loader, dev, sampling=False):
     return f1
 
 def evaluate_hmm(loader, tagger, dev):
-    if dev:
-        correct, predicted=hmm_sequences(loader, tagger, loader.dev)
-    else:
-        correct, predicted=hmm_sequences(loader, tagger, loader.test)
+    correct, predicted=hmm_sequences(loader, tagger, dev)
     correct_spans=get_spans(correct)
     predicted_spans=get_spans(predicted)
     f1 = conll_f1(correct_spans, predicted_spans)

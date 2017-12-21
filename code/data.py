@@ -69,11 +69,19 @@ class DataLoader(object):
             self.tag_length = len(tag_embeddings[0].keys())
 
         if version=="hmm":
-            train_split = int(len(data)*train)
-            test_split = train_split+1+int(math.floor(len(data)*test))
-            self.train = data[:train_split]
-            self.dev = data[train_split+1 : test_split]
-            self.test = data[test_split+1:]
+            if nltk:
+                train_split = int(len(data)*train)
+                test_split = train_split+1+int(math.floor(len(data)*test))
+                self.train = data[:train_split]
+                self.dev = data[train_split+1 : test_split]
+                self.test = data[test_split+1:]
+            else:
+                data_reformatted=self.get_all_sentences(data, file)
+                train_split = int(len(data_reformatted)*train)
+                test_split = train_split+1+int(math.floor(len(data_reformatted)*test))
+                self.train = data_reformatted[:train_split]
+                self.dev = data_reformatted[train_split+1 : test_split]
+                self.test = data_reformatted[test_split+1:]
 
     def load_conll(self, version, max_length):
         train=conll2002.iob_sents(version+'.train')
