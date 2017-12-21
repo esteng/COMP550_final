@@ -47,13 +47,11 @@ def hmm_sequences(loader, tagger, dev, experiment):
         return [tag for (word, tag) in sent]
 
     for sent in data:
-        try:
+        if sent:
             correct_tags.append(tags(sent))
             predicted_words=tagger.tag(words(sent))
             predicted_labels=[word[1] for word in predicted_words]
             predicted_tags.append(predicted_labels)
-        except:
-            print sent
     return correct_tags, predicted_tags
 
 
