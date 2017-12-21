@@ -1,0 +1,80 @@
+intro outline:
+
+why NER 
+    - useful for information extraction, as a feature for downstream
+what is a named entity
+    - roughly corresponds to proper name 
+    - can span several words
+    - give example from corpus
+extracting poses challenges
+    - where to start, where to end
+    - find couple ambiguous examples
+past work
+    - much work done in past on NER
+        • 
+        •
+        •
+        •
+recent advances
+    - sequence-to-sequence modeling advances 
+        • especially with LSTMs
+        • give mathematical definition of LSTM from the boy goldberg
+
+our goal
+    - compare traditional low-data method (HMM) with neural method (LSTM) on ConLL2002 dataset 
+
+Methodology
+    \section{data}
+    - evaluating on Conll 2002 NER dataset 
+    - x sentences dutch, y sentences spanish, and z sentences english
+    - 70-20-10 train test dev split 
+    - sentences truncated @30
+        • each dataset had a couple really long sentences
+        • for lstm, all sequences must be the same length (padded)
+        • going with max length means padding most of the sentences to be far longer than they need to 
+        • for speed/scalability reasons, we cannot do this (takes ~2 hours per epoch = 40-50 hours to run one model)
+        • talk about distribution of lengths (roughly normal) 
+        • found that x% of ned, y% of spanish, z% of eng were below 30 in length
+        • and that 30 didn't impact the speed too much
+    \section{LSTM}
+    - LSTM 
+        • using Keras 
+        • architecture
+            - embedding layer (optional)
+            - 1 or 2 bidirectional LSTM layers (128 units) 
+            - followed by dropout layer with dropout factor of .5
+        • English trained with googlbooks w2v vectors
+        
+
+        • embedding layer for English, ned, and esp
+        • w2v used for English
+            - oovs were assigned 300-length embedding drawn from standard normal 
+        • all embeddings 300-d
+    \section{training}
+    - fixed epochs (20), fixed batch size (32)
+    - 100 epochs for no word embedding models (need to train embedding layer)
+    - varying whether or not we use embeddings for English
+
+    \section{evaluation}
+    - baseline accuracy is very high because most tags are "other"
+    - better measure (set forth by ConLL) is f1 over entity spans
+        • where precision is percentage of the named entities correctly predicted by the model 
+            - where correct means it matches the span exactly
+        • and recall is percentage of named entities in the gold standard that the model found
+        • f1 is the harmonic mean of precision and recall 
+
+Results 
+    \section{results}
+    - give baseline results
+    - give table of LSTM results
+    - give table of HMM results
+
+Discussion 
+    \section{result discussion}
+
+    \section{error analysis}
+
+Conclusion 
+
+
+

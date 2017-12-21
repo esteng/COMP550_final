@@ -12,10 +12,16 @@ def transform_one_hot(data, mapping, length, sampling):
 
     Parameters
     ----------
-
+    mapping: dict
+        mapping of one-hot vectors to tags
+    length: int
+        the tag length
+    sampling: bool
+        if true, samples one-hot from multinomial, if false takes argmax
     Returns
     -------
-
+    new_seqs: list
+        the sequences transformed from vectors to tags
 
     """
     new_seqs = []
@@ -105,15 +111,29 @@ def get_spans(sequences):
     return all_spans
 
 def span_equals(span1, span2):
+    """
+    comparator for spans 
+    """
     for e1, e2 in zip(span1, span2):
         if e1 != e2:
             return False
     return True
 
 def conll_f1(true_spans, pred_spans):
-    # from Conll2003 paper:
-    # Precision is the percentage of named entities found by the learning system that are correct. 
-    # Recall is the percentage of named entities present in the corpus that are found by the system
+    """
+    from Conll2003 paper:
+    Precision is the percentage of named entities found by the learning system that are correct. 
+    Recall is the percentage of named entities present in the corpus that are found by the system
+
+    Parameters
+    ----------
+    true_spans: str
+    pred_spans: str
+
+    Returns:
+    -------
+    f1: float
+    """
     precision = 0
     recall = 0
     total_predicted = 0
@@ -139,7 +159,7 @@ def conll_f1(true_spans, pred_spans):
     return f1
 
 
-def evaluate_f1(model, loader, dev, sampling=False):
+def predict_transform(model, loader, dev, sampling=False):
     if dev:
         y_pred = model.predict(loader.X_dev)
     else:
@@ -153,14 +173,20 @@ def evaluate_f1(model, loader, dev, sampling=False):
 
     print y_true_tags[0]
     print y_pred_tags[0]
+    return y_true_tags,y_pred_tags
+
+
+def evaluate_f1(model, loader, dev):
+    y_true_tags, y_pred_tags = predict_transform(model, loader, dev)
 
     true_spans = get_spans(y_true_tags)
     pred_spans = get_spans(y_pred_tags)
     f1 = conll_f1(true_spans, pred_spans)
     # sanity_check = conll_f1(true_spans, true_spans)
     # print "sanity check f1: {}".format(sanity_check)
-
+    print "f1 is {}".format(f1)
     return f1
+
 
 def evaluate_hmm(loader, tagger, dev, experiment):
     correct, predicted=hmm_sequences(loader, tagger, dev, experiment)
@@ -174,3 +200,30 @@ def evaluate_hmm(loader, tagger, dev, experiment):
     acc = accuracy(flat_correct, flat_predicted)
 
     return acc, f1
+
+def evaluate_accuracy(model, loader, dev):
+    y_true_tags, y_pred_tags = predict_transform(model, loader, dev)
+
+    correct = 0
+    total = 0
+    c = 0
+    for true, pred in zip(y_true_tags, y_pred_tags):
+        try:
+            assert len(true) == len(pred)
+        except AssertionError:
+            print len(true), len(pred)
+            c+=1
+    print "mistakes: ", c
+    for i, sent in enumerate(y_true_tags):
+        total += len(sent)
+        for j, tag in enumerate(sent):
+            try:
+                if tag == y_pred_tags[i][j]:
+                    correct += 1
+            except IndexError:
+                continue
+
+    print "accuracy: {}".format(float(correct)/float(total))
+
+
+
