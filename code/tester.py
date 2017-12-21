@@ -1,6 +1,8 @@
 import numpy as np
 import sys
 import re 
+from nltk.metrics import accuracy
+import itertools
 
 
 def transform_one_hot(data, mapping, length, sampling):
@@ -10,10 +12,16 @@ def transform_one_hot(data, mapping, length, sampling):
 
     Parameters
     ----------
-
+    mapping: dict
+        mapping of one-hot vectors to tags
+    length: int
+        the tag length
+    sampling: bool
+        if true, samples one-hot from multinomial, if false takes argmax
     Returns
     -------
-
+    new_seqs: list
+        the sequences transformed from vectors to tags
 
     """
     new_seqs = []
@@ -31,6 +39,29 @@ def transform_one_hot(data, mapping, length, sampling):
 
     return new_seqs
 
+def hmm_sequences(loader, tagger, dev, experiment):
+    if dev or experiment=='2':
+        data=loader.dev
+    else:
+        data=loader.test
+    correct_tags=[]
+    predicted_tags=[]
+    def words(sent):
+        return [word for (word, tag) in sent]
+
+    def tags(sent):
+        return [tag for (word, tag) in sent]
+
+    for sent in data:
+        if sent:
+            correct_tags.append(tags(sent))
+            predicted_words=tagger.tag(words(sent))
+            predicted_labels=[word[1] for word in predicted_words]
+            predicted_tags.append(predicted_labels)
+    return correct_tags, predicted_tags
+
+
+    #predicted_sequence = list(map(self._tag, map(words, test_sequence)))
 
 def get_spans(sequences):
     """return a sequence of spans where a span is defined as everything before the O in a
@@ -88,7 +119,6 @@ def span_equals(span1, span2):
             return False
     return True
 
-
 def conll_f1(true_spans, pred_spans):
     """
     from Conll2003 paper:
@@ -99,6 +129,10 @@ def conll_f1(true_spans, pred_spans):
     ----------
     true_spans: str
     pred_spans: str
+
+    Returns:
+    -------
+    f1: float
     """
     precision = 0
     recall = 0
@@ -153,6 +187,20 @@ def evaluate_f1(model, loader, dev):
     print "f1 is {}".format(f1)
     return f1
 
+
+def evaluate_hmm(loader, tagger, dev, experiment):
+    correct, predicted=hmm_sequences(loader, tagger, dev, experiment)
+    correct_spans=get_spans(correct)
+    predicted_spans=get_spans(predicted)
+    f1 = conll_f1(correct_spans, predicted_spans)
+    def flatten(seq):
+        return list(itertools.chain(*seq))
+    flat_correct=flatten(correct)
+    flat_predicted=flatten(predicted)
+    acc = accuracy(flat_correct, flat_predicted)
+
+    return acc, f1
+
 def evaluate_accuracy(model, loader, dev):
     y_true_tags, y_pred_tags = predict_transform(model, loader, dev)
 
@@ -176,5 +224,6 @@ def evaluate_accuracy(model, loader, dev):
                 continue
 
     print "accuracy: {}".format(float(correct)/float(total))
+
 
 

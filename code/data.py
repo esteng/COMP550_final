@@ -10,18 +10,23 @@ from keras.preprocessing import text, sequence
 
 class DataLoader(object):
     """DataLoader class creates passable object containing all data"""
-    def __init__(self):
+    def __init__(self, model_type):
         super(DataLoader, self).__init__()
+        self.model_type = model_type
         self.X_train = None
         self.Y_train = None
+        self.train = None
         self.X_test = None
         self.Y_test = None
+        self.test = None
         self.X_dev = None
         self.Y_dev = None
+        self.dev = None
         self.tag_length = None
         self.w2v_size = None
         self.max_length =None
         self.input_path = None
+
 
     def get_file_data(self, path, embedding_path, stopwords=None):
         """
@@ -44,6 +49,8 @@ class DataLoader(object):
             path to the data (csv, txt, or nltk language option ("ned" or "esp"))
         embedding_path: str
             path to the embedding file (binary or text) if available
+        model_type: str
+            "lstm" or "hmm"
         stopwords: str
             nltk option for stopwords, if set to valid string stopwords are removed 
         """
@@ -63,26 +70,44 @@ class DataLoader(object):
 
         print("getting X Y sets")
         # print data[100]
-        X, Y, w2v_mapping, tag_embeddings, max_length = self.make_x_y(data, embedding_path, file, use_nltk, stopwords)
-        try:
-            self.w2v_size = len(w2v_mapping[list(w2v_mapping.vocab)[0]])
-            self.use_embedding_layer = False
-        except AttributeError:
-            self.w2v_size = 300
-            self.use_embedding_layer = True
+
         train, test, dev = .7, .2, .1
+        if self.model_type=="lstm":
+            # print("getting X Y sets")
+            X, Y, w2v_mapping, tag_embeddings, max_length = self.make_x_y(data, embedding_path, file, use_nltk, stopwords)
+            try:
+                self.w2v_size = len(w2v_mapping[list(w2v_mapping.vocab)[0]])
+                self.use_embedding_layer = False
+            except AttributeError:
+                self.w2v_size = 300
+                self.use_embedding_layer = True
 
-        train_split = int(len(X)*train)
-        test_split = train_split+1+int(math.floor(len(X)*test))
+            train_split = int(len(X)*train)
+            test_split = train_split+1+int(math.floor(len(X)*test))
 
-        self.X_train, self.Y_train = X[:train_split], Y[:train_split]
-        self.X_test, self.Y_test = X[train_split +1 : test_split], Y[train_split + 1:test_split]
-        self.X_dev, self.Y_dev = X[test_split +1 :], Y[test_split +1 :]
+            self.X_train, self.Y_train = X[:train_split], Y[:train_split]
+            self.X_test, self.Y_test = X[train_split +1 : test_split], Y[train_split + 1:test_split]
+            self.X_dev, self.Y_dev = X[test_split +1 :], Y[test_split +1 :]
 
-        print("X shape: train: {}, test: {}, dev: {}".format(self.X_train.shape, self.X_test.shape, self.X_dev.shape))
-        print("Y shape: train: {}, test: {}, dev: {}".format(self.Y_train.shape, self.Y_test.shape, self.Y_dev.shape))
-        self.tag_length = len(tag_embeddings[0].keys())
-        sys.exit()
+            print("X shape: train: {}, test: {}, dev: {}".format(self.X_train.shape, self.X_test.shape, self.X_dev.shape))
+            print("Y shape: train: {}, test: {}, dev: {}".format(self.Y_train.shape, self.Y_test.shape, self.Y_dev.shape))
+            self.tag_length = len(tag_embeddings[0].keys())
+
+        elif self.model_type=="hmm":
+            if use_nltk:
+                train_split = int(len(data)*train)
+                test_split = train_split+1+int(math.floor(len(data)*test))
+                self.train = data[:train_split]
+                self.dev = data[train_split+1 : test_split]
+                self.test = data[test_split+1:]
+            else:
+                data_reformatted=self.get_all_sentences(data, file)
+                train_split = int(len(data_reformatted)*train)
+                test_split = train_split+1+int(math.floor(len(data_reformatted)*test))
+                self.train = data_reformatted[:train_split]
+                self.dev = data_reformatted[train_split+1 : test_split]
+                self.test = data_reformatted[test_split+1:]
+
     def load_conll(self, version):
         """
         loads conll 2002 datasets from nltk
@@ -91,7 +116,6 @@ class DataLoader(object):
         ----------
         version: str
             either ned or esp
-
         Returns
         -------
         tuple
@@ -407,5 +431,3 @@ class DataLoader(object):
         self.one_hot_to_tag = one_hot_to_tag
         self.tag_to_one_hot = tag_to_one_hot
         return x_full, y_full, w2v_mapping, (tag_to_one_hot, one_hot_to_tag), max_len
-
-

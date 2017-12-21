@@ -1,0 +1,30 @@
+mistake:
+('lstm', 'ned', '1')
+mistake:
+('lstm', 'ned', '2')
+mistake: 
+('lstm', 'esp', '1')
+mistake: 
+('lstm', 'esp', '2')
+mistake:
+('lstm', '../data/entity-annotated-corpus/ner_dataset.csv', '1')
+mistake:
+('lstm', '../data/entity-annotated-corpus/ner_dataset.csv', '2')
+mistake: 
+('hmm', 'ned', '1', 'mle')
+mistake: 
+('hmm', 'ned', '1', 'Laplace')
+mistake: 
+('hmm', 'ned', '2', 'mle')
+mistake: 
+('hmm', 'ned', '2', 'Laplace')
+mistake: 
+('hmm', 'esp', '1', 'mle')
+mistake: 
+('hmm', 'esp', '1', 'Laplace')
+mistake: 
+('hmm', 'esp', '2', 'mle')
+mistake: 
+('hmm', 'esp', '2', 'Laplace')
+mistake: 
+('hmm', '../data/entity-annotated-corpus/ner_dataset.csv', '2', 'Laplace')
