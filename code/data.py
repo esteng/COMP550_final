@@ -82,7 +82,7 @@ class DataLoader(object):
         print("X shape: train: {}, test: {}, dev: {}".format(self.X_train.shape, self.X_test.shape, self.X_dev.shape))
         print("Y shape: train: {}, test: {}, dev: {}".format(self.Y_train.shape, self.Y_test.shape, self.Y_dev.shape))
         self.tag_length = len(tag_embeddings[0].keys())
-
+        sys.exit()
     def load_conll(self, version):
         """
         loads conll 2002 datasets from nltk
