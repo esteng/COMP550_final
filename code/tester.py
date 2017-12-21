@@ -33,8 +33,8 @@ def transform_one_hot(data, mapping, length, sampling):
 
     return new_seqs
 
-def hmm_sequences(loader, tagger, dev):
-    if dev:
+def hmm_sequences(loader, tagger, dev, experiment):
+    if dev or experiment=='2':
         data=loader.dev
     else:
         data=loader.test
@@ -164,8 +164,8 @@ def evaluate_f1(model, loader, dev, sampling=False):
 
     return f1
 
-def evaluate_hmm(loader, tagger, dev):
-    correct, predicted=hmm_sequences(loader, tagger, dev)
+def evaluate_hmm(loader, tagger, dev, experiment):
+    correct, predicted=hmm_sequences(loader, tagger, dev, experiment)
     correct_spans=get_spans(correct)
     predicted_spans=get_spans(predicted)
     f1 = conll_f1(correct_spans, predicted_spans)

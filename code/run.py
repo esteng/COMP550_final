@@ -43,15 +43,21 @@ def run_lstm(loader, output_file, use_dev, layer_num, resume_path):
         writer.writerow(row)
     return results, f1_results
 
-def run_hmm(loader, use_dev, estimator):
+def run_hmm(loader, use_dev, estimator, experiment):
     print "training..."
     trainer=hmm.HiddenMarkovModelTrainer()
     if estimator=='Laplace':
-        tagger = trainer.train_supervised(loader.train, LaplaceProbDist)
+        if experiment=='1':
+            tagger = trainer.train_supervised(loader.train, LaplaceProbDist)
+        else:
+            tagger = trainer.train_supervised(loader.test, LaplaceProbDist)
     else:
-        tagger = trainer.train_supervised(loader.train)
+        if experiment=='1':
+            tagger = trainer.train_supervised(loader.train)
+        else:
+            tagger = trainer.train_supervised(loader.test, LaplaceProbDist)
     print "evaluating..."
-    accuracy, f1= evaluate_hmm(loader, tagger, use_dev)
+    accuracy, f1= evaluate_hmm(loader, tagger, use_dev, experiment)
     print ("The accuracy is: {} and the f1 is:{}".format(accuracy, f1))
 
 if __name__ == '__main__':
@@ -70,7 +76,8 @@ if __name__ == '__main__':
     parser.add_argument("--model_type", dest="model_type", required=True, type=str, 
         help="mandatory argument: what type of NER system to run. \n Expected: 'lstm' or 'hmm'")
     parser.add_argument("--resume_model", dest="resume_path", required=False, type=str, help="resume model from existing file")
-    parser.add_argument("--estimator", dest="estimator", default="Laplace", required=False, type=str, help="if using an hmm choose an estimator")
+    parser.add_argument("--estimator", dest="estimator", default="Laplace", required=False, type=str, help="if using an hmm, choose an estimator \n Expected: 'mle' or 'Laplce'")
+    parser.add_argument("--experiment", dest="experiment", default="1", required=True, type=str, help="Choose experiment 1 or 2")
     args = parser.parse_args()
 
     loader = DataLoader()
@@ -81,4 +88,4 @@ if __name__ == '__main__':
     if args.model_type.lower() == "lstm":
         run_lstm(loader, "../results/lstm_results_ned.csv", USE_DEV, LAYER_NUM, args.resume_path)
     else:
-        run_hmm(loader, USE_DEV, args.estimator)
+        run_hmm(loader, USE_DEV, args.estimator, args.experiment)
